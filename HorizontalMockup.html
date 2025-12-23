@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Split Screen Monitor</title>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --text-main: #0f172a;
+            --blue: #0284c7;
+            --red: #dc2626;
+            --comment-bg: #e2e8f0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+
+        /* STRICT FULL SCREEN */
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: white;
+        }
+
+        /* --- VIEW 1: LIST (The Briefing) --- */
+        #list-view {
+            position: absolute;
+            inset: 0;
+            background: white;
+            padding: 30px;
+            display: none;
+            flex-direction: column;
+            z-index: 10;
+        }
+        #list-view.active { display: flex; }
+
+        .list-header {
+            height: 80px;
+            font-size: 2rem;
+            font-weight: 900;
+            border-bottom: 4px solid var(--blue);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .list-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            overflow-y: auto;
+        }
+        .list-item {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 6px solid var(--blue);
+            display: flex;
+            align-items: center;
+        }
+        .list-item.complaint { border-left-color: var(--red); background: #fef2f2; }
+        .l-sno { font-weight: 900; color: #94a3b8; width: 40px; }
+        .l-text { font-weight: 700; font-size: 1.1rem; }
+
+
+        /* --- VIEW 2: DETAIL (Split Screen) --- */
+        #detail-view {
+            position: absolute;
+            inset: 0;
+            background: white;
+            display: none;
+            flex-direction: column;
+            z-index: 20;
+        }
+        #detail-view.active { display: flex; }
+
+        /* 1. TOP HEADER (New Location) */
+        .top-bar {
+            height: 120px;
+            background: white;
+            border-bottom: 4px solid var(--blue);
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            z-index: 5;
+        }
+        .top-bar.complaint { border-bottom-color: var(--red); }
+
+        .counter {
+            background: #0f172a;
+            color: white;
+            font-size: 2rem;
+            font-weight: 900;
+            padding: 8px 16px;
+            border-radius: 8px;
+            margin-right: 30px;
+        }
+        .info-box { flex: 1; }
+        .info-type { font-size: 1.1rem; font-weight: 800; text-transform: uppercase; color: var(--blue); }
+        .info-msg { font-size: 2.2rem; font-weight: 800; line-height: 1.1; color: var(--text-main); }
+
+
+        /* 2. SPLIT BODY CONTAINER */
+        .split-body {
+            flex: 1; /* Takes remaining height */
+            display: flex;
+            height: calc(100vh - 120px);
+        }
+
+        /* LEFT: Media (75%) */
+        .media-section {
+            width: 75%;
+            background: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-right: 1px solid #333;
+        }
+        .media-section img, .media-section video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Ensures full visibility */
+        }
+
+        /* RIGHT: Comments (25%) */
+        .comments-section {
+            width: 25%;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .comments-header {
+            padding: 15px;
+            background: #e2e8f0;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #cbd5e1;
+        }
+
+        .comments-list {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto; /* Scrollable if many comments */
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .comment-bubble {
+            background: white;
+            padding: 15px;
+            border-radius: 0 12px 12px 12px;
+            border-left: 4px solid #cbd5e1;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            animation: fadeIn 0.5s ease-out;
+        }
+        .c-user { font-size: 0.85rem; font-weight: 700; color: #64748b; margin-bottom: 5px; }
+        .c-text { font-size: 1rem; color: #334155; line-height: 1.4; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    </style>
+</head>
+<body>
+
+    <div id="list-view">
+        <div class="list-header">
+            <span>PRODUCTION OVERVIEW</span>
+            <span style="color:#64748b" id="list-count">0 Items</span>
+        </div>
+        <div id="list-container" class="list-grid"></div>
+    </div>
+
+    <div id="detail-view">
+        <div class="top-bar" id="top-bar">
+            <div class="counter" id="counter">1/10</div>
+            <div class="info-box">
+                <div class="info-type" id="info-type">UPDATE</div>
+                <div class="info-msg" id="info-msg">Message goes here</div>
+            </div>
+        </div>
+
+        <div class="split-body">
+            <div class="media-section" id="media-box"></div>
+            
+            <div class="comments-section">
+                <div class="comments-header">History & Comments</div>
+                <div class="comments-list" id="comments-list">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA WITH COMMENTS ---
+        const dataList = [
+            { 
+                 sno: "01", type: "followup", text: "Bench: Casting Tree Ready", image: "5.jpeg" ,
+                comments: [
+                    { user: "System", text: "Process started at 09:00 AM" },
+                    { user: "Operator", text: "Tree cleaned and dried." }
+                ]
+            },
+            { 
+                sno: "02", type: "complaint", text: "QC: Surface Porosity", image: "4.jpeg",
+                comments: [
+                    { user: "QC-Lead", text: "Rejecting Batch #55." },
+                    { user: "Manager", text: "Check casting temperature logs." },
+                    { user: "System", text: "Flagged as Critical." }
+                ]
+            },
+            { 
+                sno: "03", type: "followup", text: "Setting: Diamond Batch #9", image: "3.jpeg",
+                comments: [
+                    { user: "Setter", text: "Stones matched with mountings." }
+                ]
+            },
+            { 
+                sno: "04", type: "followup", text: "Polishing: Final Buffing", image: "2.jpeg",
+                comments: [] // No comments
+            },
+            { 
+                sno: "05", type: "complaint", text: "ALERT: Stone Missing", video: "1.mp4",
+                comments: [
+                    { user: "QC", text: "Found empty prong on shank." },
+                    { user: "Floor Mgr", text: "Searching floor area." }
+                ]
+            }
+        ];
+
+        const listView = document.getElementById('list-view');
+        const detailView = document.getElementById('detail-view');
+
+        // --- PHASE 1: LIST VIEW ---
+        function startCycle() {
+            listView.classList.add('active');
+            detailView.classList.remove('active');
+            
+            const container = document.getElementById('list-container');
+            container.innerHTML = '';
+            document.getElementById('list-count').innerText = dataList.length + " Items";
+
+            dataList.forEach(item => {
+                const isCmpl = item.type === 'complaint';
+                container.innerHTML += `
+                    <div class="list-item ${isCmpl ? 'complaint' : ''}">
+                        <span class="l-sno">${item.sno}</span>
+                        <span class="l-text">${item.text}</span>
+                    </div>
+                `;
+            });
+
+            // Show list for 8 seconds
+            setTimeout(() => {
+                showDetail(0);
+            }, 8000);
+        }
+
+        // --- PHASE 2: DETAIL VIEW ---
+        function showDetail(index) {
+            listView.classList.remove('active');
+            detailView.classList.add('active');
+
+            const item = dataList[index];
+            const isCmpl = item.type === 'complaint';
+
+            // 1. Update Header (Top)
+            document.getElementById('counter').innerText = `${index + 1} / ${dataList.length}`;
+            document.getElementById('info-msg').innerText = item.text;
+            
+            const typeEl = document.getElementById('info-type');
+            const topBar = document.getElementById('top-bar');
+            
+            typeEl.innerText = isCmpl ? '⚠ ALERT' : 'UPDATE';
+            typeEl.style.color = isCmpl ? 'var(--red)' : 'var(--blue)';
+            
+            if(isCmpl) topBar.classList.add('complaint');
+            else topBar.classList.remove('complaint');
+
+            // 2. Update Media (Left 75%)
+            const mediaBox = document.getElementById('media-box');
+            mediaBox.innerHTML = ''; 
+
+            if (item.video && item.video.endsWith('.mp4')) {
+                const v = document.createElement('video');
+                v.src = item.video;
+                v.autoplay = true; v.muted = true; v.playsInline = true;
+                mediaBox.appendChild(v);
+            } else {
+                const img = document.createElement('img');
+                img.src = item.image || item.video;
+                img.onerror = function() { mediaBox.innerHTML = '<div style="color:white">No Media</div>'; };
+                mediaBox.appendChild(img);
+            }
+
+            // 3. Update Comments (Right 25%)
+            const commList = document.getElementById('comments-list');
+            commList.innerHTML = '';
+
+            if (item.comments && item.comments.length > 0) {
+                item.comments.forEach(c => {
+                    commList.innerHTML += `
+                        <div class="comment-bubble">
+                            <div class="c-user">${c.user}</div>
+                            <div class="c-text">${c.text}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                commList.innerHTML = `<div style="text-align:center; color:#94a3b8; font-style:italic; margin-top:20px;">No comments recorded.</div>`;
+            }
+
+            // Timing Logic
+            let duration = 4000;
+            if(isCmpl) duration = 6000;
+
+            setTimeout(() => {
+                if (index < dataList.length - 1) {
+                    showDetail(index + 1);
+                } else {
+                    startCycle(); // Loop back to list
+                }
+            }, duration);
+        }
+
+        // Init
+        startCycle();
+
+    </script>
+</body>
+</html>
